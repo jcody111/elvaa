@@ -1,40 +1,35 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "services": {
-    "backend": {
-      "root": "backend"
-    },
-    "frontend": {
-      "root": "frontend",
-      "framework": "nextjs",
-      "bindings": [
-        {
-          "type": "service",
-          "service": "backend",
-          "format": "url",
-          "env": "BACKEND_INTERNAL_URL"
-        }
-      ]
-    }
+"services": {
+  "backend": {
+    "root": "backend",
+    "framework": "django"
   },
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": {
-        "service": "backend"
+  "frontend": {
+    "root": "frontend",
+    "framework": "nextjs",
+    "bindings": [
+      {
+        "type": "service",
+        "service": "backend",
+        "format": "url",
+        "env": "BACKEND_INTERNAL_URL"
       }
-    },
-    {
-      "source": "/admin(.*)",
-      "destination": {
-        "service": "backend"
+    ]
+  }
+}"services": {
+  "backend": {
+    "root": "backend",
+    "framework": "django"
+  },
+  "frontend": {
+    "root": "frontend",
+    "framework": "nextjs",
+    "bindings": [
+      {
+        "type": "service",
+        "service": "backend",
+        "format": "url",
+        "env": "BACKEND_INTERNAL_URL"
       }
-    },
-    {
-      "source": "/(.*)",
-      "destination": {
-        "service": "frontend"
-      }
-    }
-  ]
+    ]
+  }
 }
