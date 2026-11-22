@@ -1,0 +1,3 @@
+-r requirements.txt
+# Local, loopback-only SMTP capture for disposable end-to-end tests.
+aiosmtpd==1.4.6

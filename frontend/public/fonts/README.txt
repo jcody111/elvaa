@@ -1,0 +1,1 @@
+DM Sans and Playfair Display font files are from Google Fonts and are distributed under the SIL Open Font License 1.1. See https://fonts.google.com/specimen/DM+Sans and https://fonts.google.com/specimen/Playfair+Display for license details.

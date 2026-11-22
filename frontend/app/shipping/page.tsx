@@ -1,0 +1,3 @@
+import Link from 'next/link'
+export const metadata={title:'Shipping & Returns'}
+export default function Shipping(){return <div className="content-page"><span className="eyebrow">THE DETAILS</span><h1>Shipping & returns.</h1><div className="notice">Demonstration policy: confirm delivery regions, rates and return terms with your business before launch.</div><h2>Delivery</h2><p>In this demo, delivery rates and the free-delivery threshold are configured by the store. Available methods and final costs are confirmed at checkout.</p><h2>Returns</h2><p>A return and refund policy must be configured before taking real orders. Contact us with questions about a demonstration order.</p><Link className="text-link" href="/contact">GET IN TOUCH →</Link></div>}
