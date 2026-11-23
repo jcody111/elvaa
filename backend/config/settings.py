@@ -3,6 +3,8 @@ from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
+from psycopg import ProgrammingError
+from psycopg.conninfo import conninfo_to_dict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv()
@@ -48,6 +50,23 @@ if sslmode := os.getenv('POSTGRES_SSLMODE'):
     DATABASES['default']['OPTIONS'] = {'sslmode': sslmode}
 if os.getenv('USE_SQLITE', 'False').lower() == 'true':
     DATABASES = {'default': {'ENGINE':'django.db.backends.sqlite3', 'NAME':BASE_DIR/'db.sqlite3'}}
+elif database_url := os.getenv('DATABASE_URL'):
+    try:
+        connection = conninfo_to_dict(database_url)
+    except ProgrammingError:
+        raise ImproperlyConfigured('DATABASE_URL must be a valid PostgreSQL connection string') from None
+    if not all(connection.get(key) for key in ('dbname', 'host', 'user')):
+        raise ImproperlyConfigured('DATABASE_URL must include a PostgreSQL host, database and user')
+
+    database = DATABASES['default']
+    for setting, parameter in (
+        ('NAME', 'dbname'), ('USER', 'user'), ('PASSWORD', 'password'),
+        ('HOST', 'host'), ('PORT', 'port'),
+    ):
+        database[setting] = connection.pop(parameter, '')
+    database['OPTIONS'] = connection
+    if '-pooler.' in database['HOST']:
+        database['DISABLE_SERVER_SIDE_CURSORS'] = True
 AUTH_USER_MODEL = 'accounts.User'
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME':'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
