@@ -6,13 +6,19 @@ from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv()
-DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() == 'true'
+ON_VERCEL = os.getenv('VERCEL') == '1'
+DEBUG = os.getenv('DJANGO_DEBUG', 'False' if ON_VERCEL else 'True').lower() == 'true'
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', '')
 if not SECRET_KEY:
     if not DEBUG:
         raise ImproperlyConfigured('DJANGO_SECRET_KEY must be configured in production')
     SECRET_KEY = 'development-only-key-not-for-production-change-this-value'
 ALLOWED_HOSTS = [x.strip() for x in os.getenv('DJANGO_ALLOWED_HOSTS', '*' if DEBUG else '').split(',') if x.strip()]
+VERCEL_HOSTS = [
+    os.environ[name] for name in ('VERCEL_URL', 'VERCEL_BRANCH_URL', 'VERCEL_PROJECT_PRODUCTION_URL')
+    if ON_VERCEL and os.getenv(name)
+]
+ALLOWED_HOSTS.extend(VERCEL_HOSTS)
 if not DEBUG and not ALLOWED_HOSTS:
     raise ImproperlyConfigured('DJANGO_ALLOWED_HOSTS must be configured in production')
 INSTALLED_APPS = [
@@ -36,7 +42,10 @@ TEMPLATES = [{'BACKEND':'django.template.backends.django.DjangoTemplates','DIRS'
 WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {'default': {'ENGINE':'django.db.backends.postgresql', 'NAME':os.getenv('POSTGRES_DB','elvaa'),
     'USER':os.getenv('POSTGRES_USER','elvaa'), 'PASSWORD':os.getenv('POSTGRES_PASSWORD',''),
-    'HOST':os.getenv('POSTGRES_HOST','db'), 'PORT':os.getenv('POSTGRES_PORT','5432'), 'CONN_MAX_AGE':60}}
+    'HOST':os.getenv('POSTGRES_HOST','db'), 'PORT':os.getenv('POSTGRES_PORT','5432'),
+    'CONN_MAX_AGE':0 if ON_VERCEL else 60}}
+if sslmode := os.getenv('POSTGRES_SSLMODE'):
+    DATABASES['default']['OPTIONS'] = {'sslmode': sslmode}
 if os.getenv('USE_SQLITE', 'False').lower() == 'true':
     DATABASES = {'default': {'ENGINE':'django.db.backends.sqlite3', 'NAME':BASE_DIR/'db.sqlite3'}}
 AUTH_USER_MODEL = 'accounts.User'
@@ -49,9 +58,26 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE='en-us'; TIME_ZONE='UTC'; USE_I18N=True; USE_TZ=True
 STATIC_URL='/static/'; STATIC_ROOT=BASE_DIR/'staticfiles'
 MEDIA_URL='/media/'; MEDIA_ROOT=BASE_DIR/'media'
+if media_bucket := os.getenv('MEDIA_S3_BUCKET'):
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3.S3Storage',
+            'OPTIONS': {
+                'bucket_name': media_bucket,
+                'region_name': os.getenv('MEDIA_S3_REGION'),
+                'endpoint_url': os.getenv('MEDIA_S3_ENDPOINT_URL') or None,
+                'access_key': os.getenv('MEDIA_S3_ACCESS_KEY_ID') or None,
+                'secret_key': os.getenv('MEDIA_S3_SECRET_ACCESS_KEY') or None,
+                'signature_version': 's3v4',
+                'file_overwrite': False,
+            },
+        },
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
 DEFAULT_AUTO_FIELD='django.db.models.BigAutoField'
 CORS_ALLOWED_ORIGINS=[x.strip() for x in os.getenv('CORS_ALLOWED_ORIGINS','http://localhost:3000').split(',') if x.strip()]
 CSRF_TRUSTED_ORIGINS=[x.strip() for x in os.getenv('CSRF_TRUSTED_ORIGINS','http://localhost:3000,https://*.e2b.app' if DEBUG else '').split(',') if x.strip()]
+CSRF_TRUSTED_ORIGINS.extend(f'https://{host}' for host in VERCEL_HOSTS)
 CORS_ALLOW_CREDENTIALS=True
 REDIS_URL=os.getenv('REDIS_URL','')
 CACHES={'default': {'BACKEND':'django.core.cache.backends.redis.RedisCache','LOCATION':REDIS_URL}} if REDIS_URL else {'default': {'BACKEND':'django.core.cache.backends.locmem.LocMemCache','LOCATION':'elvaa-dev'}}

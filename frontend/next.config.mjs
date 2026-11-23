@@ -1,6 +1,6 @@
 ﻿/** @type {import('next').NextConfig} */
 const isVercel = process.env.VERCEL === '1'
-const upstream = (process.env.API_UPSTREAM || 'http://127.0.0.1:8000').replace(/\/$/, '')
+const upstream = (process.env.API_UPSTREAM || (isVercel ? '' : 'http://127.0.0.1:8000')).replace(/\/+$/, '')
 
 const nextConfig = {
   skipTrailingSlashRedirect: true,
@@ -9,7 +9,7 @@ const nextConfig = {
     remotePatterns: [{ protocol: 'https', hostname: '**' }]
   },
   async rewrites() {
-    if (isVercel) return []
+    if (!upstream) return []
 
     return [
       { source: '/api/:path*', destination: `${upstream}/api/:path*/` },

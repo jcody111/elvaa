@@ -2,7 +2,7 @@ import axios from 'axios'
 import {useAuth} from '@/store/auth'
 import type {Category,Page,Product,ShippingMethod,Quote} from './types'
 
-// Same-origin by default; Next rewrites to the independent Django server.
+// Keep API requests same-origin for the refresh and CSRF cookies.
 export const api=axios.create({baseURL:'/api/v1',withCredentials:true,withXSRFToken:true,
   xsrfCookieName:'csrftoken',xsrfHeaderName:'X-CSRFToken',timeout:15000})
 api.interceptors.request.use(config=>{const token=useAuth.getState().access;if(token)config.headers.Authorization=`Bearer ${token}`;return config})

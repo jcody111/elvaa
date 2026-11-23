@@ -2,12 +2,21 @@
 
 **This is deployment preparation, not a claim of production readiness.** Read [STATUS.md](STATUS.md) and [PAYMENTS.md](PAYMENTS.md) before a launch.
 
-## Frontend on Vercel
+## Next.js and Django on Vercel Services
 
-1. Import the repository and set **Root Directory** to `frontend`. Use the Next.js framework preset and `npm run build`.
-2. Set the server-side environment variable `API_UPSTREAM=https://api.example.com` (origin only, no `/api/v1`). Set `NEXT_PUBLIC_SITE_URL=https://shop.example.com` for metadata, robots and sitemap URLs. The build fails if `API_UPSTREAM` is missing in production.
-3. Deploy and attach the real storefront domain. Vercel handles its TLS certificate. Configure the API and its reverse proxy separately.
-4. Requests to `/api/:path*` and `/media/:path*` are rewritten server-side. The upstream is compiled into Next.js rewrites at build time: redeploy if it changes. Do not use a browser-facing `localhost` API URL.
+1. Import the Git repository and leave **Root Directory** at the repository root, where `vercel.json` lives. Use the **Services** framework preset if the dashboard asks you to select a preset. Clear custom Install, Build and Output Directory overrides from previous attempts. Vercel builds Next.js in `frontend` and discovers Django through `backend/manage.py`.
+2. Keep **Automatically expose System Environment Variables** enabled. Set `DJANGO_DEBUG=False`, `DJANGO_SECRET_KEY`, and the `POSTGRES_*` and Redis connection settings in [backend/.env.example](../backend/.env.example) for each environment. Use a PostgreSQL endpoint reachable from Vercel, preferably the provider's pooled endpoint, and set `POSTGRES_SSLMODE` to the mode required by the provider. Set `USE_SQLITE=False`. Use separate databases and credentials for Preview and Production.
+3. Set `DJANGO_ALLOWED_HOSTS` to each custom storefront hostname and `CSRF_TRUSTED_ORIGINS` to the corresponding HTTPS origins. Django also uses the exact Vercel-generated hostnames exposed by the platform. Set `FRONTEND_URL` to the public HTTPS storefront origin used in email and checkout return links. Set `NEXT_PUBLIC_SITE_URL` to the canonical public origin if you have a custom domain. Vercel injects `BACKEND_INTERNAL_URL` into the frontend functions. Leave `API_UPSTREAM` unset in this configuration.
+4. Run `python manage.py migrate` from `backend` using the target database's credentials before serving traffic. Run migrations once per release from a trusted machine or CI job with database access. For a new demo database, `python manage.py seed` adds sample products. `collectstatic` runs during the Django build.
+5. For image uploads, configure the `MEDIA_S3_*` bucket, credentials and region in [backend/.env.example](../backend/.env.example). Set `MEDIA_S3_ENDPOINT_URL` for an S3-compatible provider that requires a custom endpoint. Migrate existing uploaded files to the bucket using their existing object keys. The default Vercel Functions request limit is 4.5 MB including multipart overhead. Use images of 4 MB or less on Vercel. Seeded `/images/` assets are bundled with Next.js.
+6. Keep the Celery worker and exactly one beat scheduler running separately with the same production database, broker and Stripe settings if using Stripe reconciliation. Configure SMTP before relying on account or newsletter emails. The Stripe webhook URL on the shared domain is `/api/v1/payments/stripe/webhook/`.
+7. After deploy, check `/api/v1/health/` for a JSON response and `/api/v1/products/` for database connectivity. Open `/shop` and a product page, then verify sign-in and session refresh on the deployed domain. The storefront admin lives at `/admin`.
+
+## Frontend on Vercel with an independent Django API
+
+1. Set **Root Directory** to `frontend` and choose **Next.js**. Use the preset defaults for Install, Build and Output Directory.
+2. Set `API_UPSTREAM=https://api.example.com` to the public API origin and `NEXT_PUBLIC_SITE_URL` to the storefront origin. Next.js forwards same-origin `/api/` and `/media/` requests. Redeploy after changing the API origin because Next.js compiles the rewrites at build time.
+3. Follow the Django hosting instructions below. Include the storefront HTTPS origin in Django's `CSRF_TRUSTED_ORIGINS` and set `FRONTEND_URL` to that origin.
 
 ## Django API on a VPS/cloud host
 
